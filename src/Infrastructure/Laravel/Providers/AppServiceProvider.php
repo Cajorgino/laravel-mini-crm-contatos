@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Infrastructure\Laravel\Providers;
 
+use Application\Contact\UseCases\ProcessContactScoreUseCase;
 use Application\Contracts\DomainEventDispatcherInterface;
 use Domain\Contact\Events\ContactScoreProcessed;
 use Domain\Contact\Repositories\ContactRepositoryInterface;
@@ -32,6 +33,15 @@ final class AppServiceProvider extends ServiceProvider
                 new NameScoreStrategy(),
                 new PhoneScoreStrategy(),
             ]);
+        });
+
+        $this->app->bind(ProcessContactScoreUseCase::class, function ($app): ProcessContactScoreUseCase {
+            return new ProcessContactScoreUseCase(
+                repository: $app->make(ContactRepositoryInterface::class),
+                scoreCalculatorService: $app->make(ScoreCalculatorService::class),
+                eventDispatcher: $app->make(DomainEventDispatcherInterface::class),
+                processingDelayInSeconds: $app->environment('testing') ? 0 : 2,
+            );
         });
     }
 
