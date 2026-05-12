@@ -11,4 +11,5 @@ Route::prefix('contacts')->group(function (): void {
     Route::get('{id}', [ContactController::class, 'show']);
     Route::put('{id}', [ContactController::class, 'update']);
     Route::delete('{id}', [ContactController::class, 'destroy']);
+    Route::post('{id}/process-score', [ContactController::class, 'processScore']);
 });

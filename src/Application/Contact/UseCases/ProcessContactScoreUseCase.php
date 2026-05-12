@@ -22,13 +22,9 @@ final readonly class ProcessContactScoreUseCase
     ) {
     }
 
-    public function execute(int $id): Contact
+    public function execute(int|Contact $contact): Contact
     {
-        $contact = $this->repository->findById($id);
-
-        if ($contact === null) {
-            throw new RuntimeException('Contact not found.');
-        }
+        $contact = is_int($contact) ? $this->findContactOrFail($contact) : $contact;
 
         try {
             $contact->startProcessing();
@@ -54,5 +50,16 @@ final readonly class ProcessContactScoreUseCase
 
             throw $exception;
         }
+    }
+
+    private function findContactOrFail(int $id): Contact
+    {
+        $contact = $this->repository->findById($id);
+
+        if ($contact === null) {
+            throw new RuntimeException('Contact not found.');
+        }
+
+        return $contact;
     }
 }

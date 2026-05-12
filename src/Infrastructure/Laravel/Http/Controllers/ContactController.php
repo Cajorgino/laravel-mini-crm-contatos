@@ -19,6 +19,7 @@ use Illuminate\Http\Response;
 use Infrastructure\Laravel\Http\Requests\StoreContactRequest;
 use Infrastructure\Laravel\Http\Requests\UpdateContactRequest;
 use Infrastructure\Laravel\Http\Resources\ContactResource;
+use Infrastructure\Laravel\Jobs\ProcessContactScoreJob;
 
 final class ContactController extends Controller
 {
@@ -81,5 +82,14 @@ final class ContactController extends Controller
         $this->deleteContactUseCase->execute($id);
 
         return response()->noContent();
+    }
+
+    public function processScore(int $id): JsonResponse
+    {
+        ProcessContactScoreJob::dispatch($id);
+
+        return response()->json([
+            'message' => 'Contact score processing queued.',
+        ], Response::HTTP_ACCEPTED);
     }
 }
