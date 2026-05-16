@@ -12,15 +12,14 @@ final readonly class GetContactUseCase
 {
     public function __construct(
         private ContactRepositoryInterface $repository,
-    ) {
-    }
+    ) {}
 
     public function execute(int $id): Contact
     {
         $contact = $this->repository->findById($id);
 
         if ($contact === null) {
-            throw new RuntimeException('Contact not found.');
+            throw new RuntimeException('Contato não encontrado.');
         }
 
         return $contact;

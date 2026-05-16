@@ -8,18 +8,12 @@ use Domain\Contact\Entities\Contact as DomainContact;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
-/**
- * @mixin DomainContact
- */
 final class ContactResource extends JsonResource
 {
-    /**
-     * @return array<string, mixed>
-     */
     public function toArray(Request $request): array
     {
-        /** @var DomainContact $contact */
         $contact = $this->resource;
+        assert($contact instanceof DomainContact);
 
         return [
             'id' => $contact->id(),
@@ -30,6 +24,7 @@ final class ContactResource extends JsonResource
             'status' => $contact->status()->value,
             'processed_at' => $contact->processedAt()?->format(DATE_ATOM),
             'created_at' => $contact->createdAt()?->format(DATE_ATOM),
+            'updated_at' => $contact->updatedAt()?->format(DATE_ATOM),
         ];
     }
 }

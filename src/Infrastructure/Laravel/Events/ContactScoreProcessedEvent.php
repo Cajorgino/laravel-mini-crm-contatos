@@ -22,9 +22,6 @@ final class ContactScoreProcessedEvent implements ShouldBroadcast
     ) {
     }
 
-    /**
-     * @return array<int, Channel>
-     */
     public function broadcastOn(): array
     {
         return [
@@ -37,9 +34,6 @@ final class ContactScoreProcessedEvent implements ShouldBroadcast
         return 'ContactScoreProcessed';
     }
 
-    /**
-     * @return array<string, mixed>
-     */
     public function broadcastWith(): array
     {
         return [

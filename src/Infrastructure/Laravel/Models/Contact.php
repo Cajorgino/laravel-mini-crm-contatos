@@ -13,21 +13,12 @@ class Contact extends Model
 
     protected $table = 'contacts';
 
-    /**
-     * @var list<string>
-     */
     protected $fillable = [
         'name',
         'email',
         'phone',
-        'score',
-        'status',
-        'processed_at',
     ];
 
-    /**
-     * @return array<string, string>
-     */
     protected function casts(): array
     {
         return [

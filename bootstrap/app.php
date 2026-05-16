@@ -13,13 +13,11 @@ return Application::configure(basePath: dirname(__DIR__))
         channels: __DIR__.'/../routes/channels.php',
         health: '/up',
     )
-    ->withMiddleware(function (Middleware $middleware) {
-        //
-    })
+    ->withMiddleware(function (Middleware $middleware) {})
     ->withExceptions(function (Exceptions $exceptions) {
-        $exceptions->render(function (\RuntimeException $e, Request $request) {
-            if ($e->getMessage() === 'Contact not found.' && $request->is('api/*')) {
-                return response()->json(['message' => 'Contact not found.'], 404);
+        $exceptions->render(function (RuntimeException $e, Request $request) {
+            if ($e->getMessage() === 'Contato não encontrado.' && $request->is('api/*')) {
+                return response()->json(['message' => 'Contato não encontrado.'], 404);
             }
 
             return null;

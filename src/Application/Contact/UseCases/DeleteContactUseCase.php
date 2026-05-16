@@ -11,15 +11,14 @@ final readonly class DeleteContactUseCase
 {
     public function __construct(
         private ContactRepositoryInterface $repository,
-    ) {
-    }
+    ) {}
 
     public function execute(int $id): void
     {
         $contact = $this->repository->findById($id);
 
         if ($contact === null) {
-            throw new RuntimeException('Contact not found.');
+            throw new RuntimeException('Contato não encontrado.');
         }
 
         $this->repository->delete($contact);

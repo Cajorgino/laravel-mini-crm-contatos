@@ -29,14 +29,16 @@ final class ContactController extends Controller
         private readonly GetContactUseCase $getContactUseCase,
         private readonly UpdateContactUseCase $updateContactUseCase,
         private readonly DeleteContactUseCase $deleteContactUseCase,
-    ) {
-    }
+    ) {}
 
     public function index(Request $request): AnonymousResourceCollection
     {
+        $page = max(1, $request->integer('page', 1));
+        $perPage = min(100, max(1, $request->integer('per_page', 15)));
+
         $result = $this->listContactsUseCase->execute(
-            page: $request->integer('page', 1),
-            perPage: $request->integer('per_page', 15),
+            page: $page,
+            perPage: $perPage,
         );
 
         return ContactResource::collection($result['items'])->additional([
@@ -86,10 +88,10 @@ final class ContactController extends Controller
 
     public function processScore(int $id): JsonResponse
     {
-        ProcessContactScoreJob::dispatch($id);
+        ProcessContactScoreJob::dispatch($id)->afterResponse();
 
         return response()->json([
-            'message' => 'Contact score processing queued.',
+            'message' => 'Pontuação na fila.',
         ], Response::HTTP_ACCEPTED);
     }
 }

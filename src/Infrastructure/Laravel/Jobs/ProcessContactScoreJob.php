@@ -22,8 +22,7 @@ final class ProcessContactScoreJob implements ShouldQueue
 
     public function __construct(
         public readonly int $contactId,
-    ) {
-    }
+    ) {}
 
     public function handle(
         ContactRepositoryInterface $repository,
@@ -32,7 +31,7 @@ final class ProcessContactScoreJob implements ShouldQueue
         $contact = $repository->findById($this->contactId);
 
         if ($contact === null) {
-            throw new RuntimeException('Contact not found.');
+            throw new RuntimeException('Contato não encontrado.');
         }
 
         $useCase->execute($contact);

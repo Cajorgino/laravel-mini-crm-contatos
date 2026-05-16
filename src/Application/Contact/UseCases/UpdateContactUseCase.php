@@ -15,15 +15,14 @@ final readonly class UpdateContactUseCase
 {
     public function __construct(
         private ContactRepositoryInterface $repository,
-    ) {
-    }
+    ) {}
 
     public function execute(int $id, UpdateContactDTO $dto): Contact
     {
         $contact = $this->repository->findById($id);
 
         if ($contact === null) {
-            throw new RuntimeException('Contact not found.');
+            throw new RuntimeException('Contato não encontrado.');
         }
 
         $contact->updateDetails(

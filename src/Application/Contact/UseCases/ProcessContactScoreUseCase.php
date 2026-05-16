@@ -19,8 +19,7 @@ final readonly class ProcessContactScoreUseCase
         private ScoreCalculatorService $scoreCalculatorService,
         private DomainEventDispatcherInterface $eventDispatcher,
         private int $processingDelayInSeconds = 2,
-    ) {
-    }
+    ) {}
 
     public function execute(int|Contact $contact): Contact
     {
@@ -46,7 +45,8 @@ final readonly class ProcessContactScoreUseCase
             return $processedContact;
         } catch (Throwable $exception) {
             $contact->fail();
-            $this->repository->save($contact);
+            $failedContact = $this->repository->save($contact);
+            $this->eventDispatcher->dispatch(new ContactScoreProcessed($failedContact));
 
             throw $exception;
         }
@@ -57,7 +57,7 @@ final readonly class ProcessContactScoreUseCase
         $contact = $this->repository->findById($id);
 
         if ($contact === null) {
-            throw new RuntimeException('Contact not found.');
+            throw new RuntimeException('Contato não encontrado.');
         }
 
         return $contact;

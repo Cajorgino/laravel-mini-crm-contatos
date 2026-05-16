@@ -13,7 +13,7 @@ final class LogContactScoreListener
         $contact = $event->contact();
 
         $line = sprintf(
-            "[%s] Contact ID: %d | Email: %s | Score: %d | Status: %s%s",
+            '[%s] id=%d | email=%s | novo_score=%d | status=%s%s',
             now()->format('Y-m-d H:i:s'),
             $contact->id(),
             $contact->email()->value(),
