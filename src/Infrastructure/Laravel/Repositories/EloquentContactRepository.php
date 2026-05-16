@@ -9,7 +9,6 @@ use Domain\Contact\Repositories\ContactRepositoryInterface;
 use Domain\Contact\ValueObjects\ContactStatus;
 use Domain\Contact\ValueObjects\Email;
 use Domain\Contact\ValueObjects\Phone;
-use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Infrastructure\Laravel\Models\Contact as ContactModel;
 
 final class EloquentContactRepository implements ContactRepositoryInterface
@@ -17,10 +16,10 @@ final class EloquentContactRepository implements ContactRepositoryInterface
     public function save(DomainContact $contact): DomainContact
     {
         $model = $contact->id() === null
-            ? new ContactModel()
+            ? new ContactModel
             : ContactModel::query()->findOrFail($contact->id());
 
-        $model->fill([
+        $model->forceFill([
             'name' => $contact->name(),
             'email' => $contact->email()->value(),
             'phone' => $contact->phone()->value(),
@@ -31,10 +30,7 @@ final class EloquentContactRepository implements ContactRepositoryInterface
 
         $model->save();
 
-        /** @var ContactModel $freshModel */
-        $freshModel = $model->refresh();
-
-        return $this->toDomain($freshModel);
+        return $this->toDomain($model->refresh());
     }
 
     public function findById(int $id): ?DomainContact
@@ -46,7 +42,6 @@ final class EloquentContactRepository implements ContactRepositoryInterface
 
     public function paginate(int $page = 1, int $perPage = 15): array
     {
-        /** @var LengthAwarePaginator $paginator */
         $paginator = ContactModel::query()
             ->orderByDesc('id')
             ->paginate(

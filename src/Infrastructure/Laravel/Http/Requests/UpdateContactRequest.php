@@ -14,9 +14,6 @@ final class UpdateContactRequest extends FormRequest
         return true;
     }
 
-    /**
-     * @return array<string, mixed>
-     */
     public function rules(): array
     {
         return [
@@ -26,9 +23,25 @@ final class UpdateContactRequest extends FormRequest
                 'string',
                 'email',
                 'max:255',
-                Rule::unique('contacts', 'email')->ignore($this->route('id')),
+                Rule::unique('contacts', 'email')
+                    ->ignore($this->route('id'))
+                    ->whereNull('deleted_at'),
             ],
             'phone' => ['required', 'string', 'max:20'],
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'name.required' => 'Informe o nome.',
+            'name.max' => 'Nome muito longo (máx. :max).',
+            'email.required' => 'Informe o e-mail.',
+            'email.email' => 'E-mail inválido.',
+            'email.unique' => 'Esse e-mail já está em uso.',
+            'email.max' => 'E-mail muito longo (máx. :max).',
+            'phone.required' => 'Informe o telefone.',
+            'phone.max' => 'Telefone muito longo (máx. :max).',
         ];
     }
 }

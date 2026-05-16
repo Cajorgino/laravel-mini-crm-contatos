@@ -15,7 +15,7 @@ return new class extends Migration
             $table->string('name');
             $table->string('email')->unique();
             $table->string('phone');
-            $table->unsignedInteger('score')->default(0);
+            $table->integer('score')->default(0);
             $table->enum('status', ['pending', 'processing', 'active', 'failed'])->default('pending');
             $table->timestamp('processed_at')->nullable();
             $table->timestamps();
