@@ -13,18 +13,27 @@ final class PhoneScoreStrategyTest extends TestCase
 {
     public function test_it_gives_twenty_points_for_sao_paulo_ddds(): void
     {
-        $strategy = new PhoneScoreStrategy();
+        $strategy = new PhoneScoreStrategy;
         $email = new Email('joao@empresa.com');
         $phone = new Phone('11987654321');
 
         $this->assertSame(20, $strategy->calculate('Joao Silva', $email, $phone));
     }
 
-    public function test_it_gives_ten_points_for_other_valid_ddds(): void
+    public function test_it_gives_ten_points_for_non_sao_paulo_ddds(): void
     {
-        $strategy = new PhoneScoreStrategy();
+        $strategy = new PhoneScoreStrategy;
         $email = new Email('joao@empresa.com');
         $phone = new Phone('21987654321');
+
+        $this->assertSame(10, $strategy->calculate('Joao Silva', $email, $phone));
+    }
+
+    public function test_it_gives_ten_points_for_any_non_sp_ddd_accepted_by_phone_vo(): void
+    {
+        $strategy = new PhoneScoreStrategy;
+        $email = new Email('joao@empresa.com');
+        $phone = new Phone('20987654321');
 
         $this->assertSame(10, $strategy->calculate('Joao Silva', $email, $phone));
     }

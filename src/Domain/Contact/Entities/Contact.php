@@ -93,12 +93,13 @@ final class Contact
 
         $this->score = $score;
         $this->status = ContactStatus::Active;
-        $this->processedAt = new DateTimeImmutable();
+        $this->processedAt = new DateTimeImmutable;
     }
 
     public function fail(): void
     {
         $this->status = ContactStatus::Failed;
+        $this->processedAt = new DateTimeImmutable;
     }
 
     public function id(): ?int

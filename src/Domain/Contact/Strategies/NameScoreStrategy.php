@@ -11,8 +11,13 @@ final class NameScoreStrategy implements ScoreStrategyInterface
 {
     public function calculate(string $name, Email $email, Phone $phone): int
     {
-        $normalizedName = preg_replace('/\s+/', ' ', trim($name)) ?? '';
+        $trimmed = trim($name);
+        if ($trimmed === '') {
+            return 0;
+        }
 
-        return str_contains($normalizedName, ' ') ? 10 : 0;
+        $words = preg_split('/\s+/u', $trimmed, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+
+        return count($words) >= 2 ? 10 : 0;
     }
 }

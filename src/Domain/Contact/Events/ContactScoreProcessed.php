@@ -10,8 +10,7 @@ final readonly class ContactScoreProcessed
 {
     public function __construct(
         private Contact $contact,
-    ) {
-    }
+    ) {}
 
     public function contact(): Contact
     {

@@ -70,6 +70,7 @@ final class ContactTest extends TestCase
         $contact->fail();
 
         $this->assertSame(ContactStatus::Failed, $contact->status());
+        $this->assertInstanceOf(DateTimeImmutable::class, $contact->processedAt());
     }
 
     public function test_it_rejects_an_empty_name(): void

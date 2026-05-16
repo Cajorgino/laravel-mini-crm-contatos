@@ -8,6 +8,10 @@ use InvalidArgumentException;
 
 final readonly class Phone
 {
+    private const SP_DDD_MIN = 11;
+
+    private const SP_DDD_MAX = 19;
+
     private string $value;
 
     public function __construct(string $value)
@@ -35,7 +39,7 @@ final readonly class Phone
     {
         $ddd = (int) $this->getDDD();
 
-        return $ddd >= 11 && $ddd <= 19;
+        return $ddd >= self::SP_DDD_MIN && $ddd <= self::SP_DDD_MAX;
     }
 
     public function __toString(): string

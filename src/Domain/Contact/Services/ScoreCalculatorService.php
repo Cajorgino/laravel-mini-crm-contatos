@@ -10,9 +10,6 @@ use Domain\Contact\ValueObjects\Phone;
 
 final readonly class ScoreCalculatorService
 {
-    /**
-     * @param iterable<ScoreStrategyInterface> $strategies
-     */
     public function __construct(
         private iterable $strategies,
     ) {

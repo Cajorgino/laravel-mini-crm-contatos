@@ -12,14 +12,6 @@ interface ContactRepositoryInterface
 
     public function findById(int $id): ?Contact;
 
-    /**
-     * @return array{
-     *     items: list<Contact>,
-     *     total: int,
-     *     page: int,
-     *     per_page: int
-     * }
-     */
     public function paginate(int $page = 1, int $perPage = 15): array;
 
     public function delete(Contact $contact): void;

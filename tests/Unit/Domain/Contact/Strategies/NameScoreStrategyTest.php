@@ -13,7 +13,7 @@ final class NameScoreStrategyTest extends TestCase
 {
     public function test_it_gives_ten_points_for_a_full_name(): void
     {
-        $strategy = new NameScoreStrategy();
+        $strategy = new NameScoreStrategy;
         $email = new Email('joao@empresa.com');
         $phone = new Phone('11987654321');
 
@@ -22,10 +22,19 @@ final class NameScoreStrategyTest extends TestCase
 
     public function test_it_returns_zero_for_a_single_name(): void
     {
-        $strategy = new NameScoreStrategy();
+        $strategy = new NameScoreStrategy;
         $email = new Email('joao@empresa.com');
         $phone = new Phone('11987654321');
 
         $this->assertSame(0, $strategy->calculate('Joao', $email, $phone));
+    }
+
+    public function test_it_counts_words_with_multiple_spaces(): void
+    {
+        $strategy = new NameScoreStrategy;
+        $email = new Email('joao@empresa.com');
+        $phone = new Phone('11987654321');
+
+        $this->assertSame(10, $strategy->calculate('Ana   Maria', $email, $phone));
     }
 }
