@@ -1,104 +1,99 @@
-# Mini CRM de Contatos
+# Desafio Técnico – Mini CRM de Contatos (DDD & TDD)
 
-API REST em **PHP 8.3 + Laravel 11** para gerenciar contatos, com processamento assíncrono de score, filas em **Redis** e broadcasts via **Laravel Reverb** (WebSockets). A organização segue **DDD**, **Clean Architecture** e testes orientados a **TDD**.
+Este desafio tem como objetivo avaliar suas habilidades avançadas em engenharia de software, design de arquitetura e fluência no ecossistema Laravel. 
 
-## Pré-requisitos
+Você deverá construir uma pequena API REST para gerenciar contatos e acompanhar, em tempo real, a evolução do **score** (pontuação) desses contatos quando um processamento assíncrono for executado.
 
-- Docker Desktop (ou Docker Engine + Docker Compose)
-- Opcional (fora do Sail): PHP 8.3 com extensões `pdo_mysql`, `mbstring`, `openssl`, `tokenizer`, `xml`, `ctype`, `json`, `bcmath`
+**O foco principal não é apenas entregar a funcionalidade, mas como você estrutura o código.** Esperamos ver a aplicação de **SOLID**, **Domain-Driven Design (DDD)** (ou Arquitetura Hexagonal/Clean Architecture) e **Test-Driven Development (TDD)**.
 
-> Os testes de integração (`tests/Feature/ContactApiTest.php`) exigem **MySQL acessível** com o banco `testing` (o Sail cria automaticamente). Se o MySQL não estiver disponível, essa suíte é **ignorada** com mensagem explicando o uso do Sail.
+---
 
-## Subir o ambiente (Laravel Sail)
+## 1. Escopo Funcional
 
-Na raiz do projeto:
+### Modelo `Contact`
 
-```bash
-cp .env.example .env
-./vendor/bin/sail up -d
-```
+| Campo          | Tipo               | Regras / Default                           |
+|----------------|--------------------|--------------------------------------------|
+| `id`           | bigint / PK        | auto-increment                             |
+| `name`         | string             | obrigatório                                |
+| `email`        | string único       | obrigatório \| formato e-mail              |
+| `phone`        | string             | obrigatório                                |
+| `score`        | integer            | default **0**                              |
+| `status`       | string (Enum)      | `pending`, `processing`, `active`, `failed`|
+| `processed_at` | timestamp nullable | preenchido após processamento do score     |
+| Timestamps     | `created_at`, `updated_at`, `deleted_at` (soft delete)            |
 
-Com o Sail em execução, gere a chave da aplicação (uma vez):
+### Endpoints CRUD
 
-```bash
-./vendor/bin/sail artisan key:generate
-```
+| Método | Rota                      | Ação                     |
+|--------|---------------------------|--------------------------|
+| POST   | `/api/contacts`           | Criar contato (inicia como `pending` e score 0) |
+| GET    | `/api/contacts`           | Listar contatos (com paginação) |
+| GET    | `/api/contacts/{id}`      | Mostrar contato          |
+| PUT    | `/api/contacts/{id}`      | Atualizar contato        |
+| DELETE | `/api/contacts/{id}`      | Excluir contato (soft)   |
 
-## Migrations e seeders
+### Fluxo de Processamento de Score (Regras de Negócio)
 
-```bash
-./vendor/bin/sail artisan migrate
-./vendor/bin/sail artisan db:seed
-```
+1. **Endpoint de Gatilho**
+   `POST /api/contacts/{id}/process-score`
 
-O `ContactSeeder` cria um contato de demonstração (`demo@empresa.com.br`) apenas se ainda não existir.
+2. **Processamento Assíncrono (Job)**
+   A rota deve enfileirar o processamento. O Job mudará o status do contato para `processing`.
 
-## Worker de filas (Redis)
+3. **Cálculo do Score (Domínio)**
+   O score não é aleatório. Ele deve ser calculado por um **Domain Service** ou **Use Case** isolado, baseado nas seguintes regras de negócio (utilize padrões como *Strategy* para permitir fácil extensão futura):
+   - **E-mail**: Domínios corporativos (não gmail, hotmail, yahoo) ganham +20 pontos. E-mails terminados em `.br` ganham +10 pontos.
+   - **Nome**: Nomes completos (com mais de uma palavra) ganham +10 pontos.
+   - **Telefone**: Se possuir código de área (DDD) válido do estado de São Paulo (11 a 19), ganha +20 pontos. Se for de outros estados, +10 pontos.
+   - *(A carga de cálculo pode ser simulada com um `sleep(1)` ou `sleep(2)` para emular demora e validar o fluxo assíncrono).*
 
-O processamento de score é enfileirado em `ProcessContactScoreJob`. Com `QUEUE_CONNECTION=redis` (padrão sugerido no `.env.example`), rode:
+4. **Finalização**
+   - O status do contato passa para `active` (ou `failed` caso ocorra alguma falha na regra).
+   - O score calculado é salvo e a data em `processed_at` é preenchida.
+   - Um evento de domínio `ContactScoreProcessed` é disparado.
 
-```bash
-./vendor/bin/sail artisan queue:work
-```
+5. **Reação ao Evento (Listeners & WebSockets)**
+   - **Log**: Um Listener grava no arquivo `storage/logs/contact.log` (ID, email, novo score, status).
+   - **Broadcast via Reverb**: A atualização do contato deve ser enviada para o frontend via websockets (canal `contacts.{id}`).
 
-## Laravel Reverb (WebSockets)
+---
 
-```bash
-./vendor/bin/sail artisan reverb:start
-```
+## 2. Requisitos Arquiteturais e Técnicos
 
-Por padrão o servidor escuta em `0.0.0.0:8080` (ajustável via variáveis `REVERB_*` no `.env`).
+Esperamos que sua solução se afaste do padrão clássico MVC "fat-controller / fat-model" do Laravel e utilize conceitos de **DDD / Arquitetura Limpa**.
 
-## Testes
+| Área | Requisito Esperado |
+| :--- | :--- |
+| **Domain Layer** | Suas regras de negócio (ex: cálculo do score, mudança de status) devem ser **agnósticas ao framework**. Utilize entidades ricas e *Value Objects* (ex: para Email, Phone, Status). |
+| **Application Layer** | Implemente *Use Cases* (ou *Actions*) para orquestrar as operações (ex: `CreateContactUseCase`, `CalculateScoreUseCase`). |
+| **Infrastructure Layer** | Aqui entram os recursos do Laravel: Controllers, Repositórios (Eloquent), Jobs, Events, Listeners e Requests. |
+| **Inversão de Dependência** | Utilize Interfaces para acoplar os *Use Cases* à infraestrutura (Repositories). Configure as dependências no *Service Container* do Laravel. |
+| **Validação e Saída** | Use **Form Requests** para validação de entrada (HTTP) e **API Resources** para padronizar o JSON de saída. |
+| **Queue & Broadcast** | Use **Redis** para a fila e **Laravel Reverb** para o WebSocket. Inclua um exemplo simples (HTML/JS) no `README` de como escutar o canal. |
 
-```bash
-./vendor/bin/sail artisan test
-```
+---
 
-Cobertura (requer extensão PCOV ou Xdebug habilitados na imagem PHP):
+## 3. Critérios de Avaliação
 
-```bash
-./vendor/bin/sail artisan test --coverage
-```
+Avaliaremos severamente a qualidade do seu código, não apenas se a API "funciona".
 
-## API — Endpoints principais
+| Peso | Critério                                                                                         |
+|------|--------------------------------------------------------------------------------------------------|
+| ⭐⭐⭐  | **Arquitetura & SOLID**: Separação clara entre Domínio, Aplicação e Infraestrutura. Correto uso de injeção de dependência e segregação de responsabilidades. |
+| ⭐⭐⭐  | **Testes (TDD)**: Seu histórico de commits deve preferencialmente demonstrar o ciclo red-green-refactor. Exigimos **Testes de Unidade** para a camada de Domínio/Aplicação (mockando infraestrutura) e **Testes de Integração (Feature)** para os endpoints e integração com banco/filas. |
+| ⭐⭐   | **Design de Código (Design Patterns)**: Uso adequado de padrões como *Strategy*, *Value Objects* e *Repository Pattern*. Entidades anêmicas custarão pontos. |
+| ⭐⭐   | **Fluência no Laravel**: Uso correto de Form Requests, API Resources, Jobs, Events/Listeners, Reverb e Observers (ex: `saving` para normalizar o formato do telefone). |
+| ⭐    | **Documentação & Setup**: Clareza no README.md ensinando a subir o ambiente (Laravel Sail ou Docker Compose customizado), rodar migrations, filas, websockets e rodar os testes. |
 
-| Método | Rota | Descrição |
-|--------|------|-----------|
-| `POST` | `/api/contacts` | Cria contato (`pending`, score `0`) |
-| `GET` | `/api/contacts` | Lista com paginação (`page`, `per_page`) |
-| `GET` | `/api/contacts/{id}` | Detalhe |
-| `PUT` | `/api/contacts/{id}` | Atualiza |
-| `DELETE` | `/api/contacts/{id}` | Soft delete |
-| `POST` | `/api/contacts/{id}/process-score` | Enfileira cálculo de score |
+---
 
-Resposta de recurso (exemplo): envelope `data` com `id`, `name`, `email`, `phone`, `score`, `status`, `processed_at`, `created_at` em ISO-8601 (`DATE_ATOM`).
+## 4. Instruções de Entrega
 
-## WebSocket — canal e segurança
+1. **Faça um fork/clone** deste repositório e inicie o desenvolvimento.
+2. Certifique-se de que os testes podem ser executados facilmente por quem for avaliar o teste (ex: `php artisan test`).
+3. Faça *commits* semânticos e granulares que demonstrem sua linha de raciocínio e a adoção do TDD.
+4. Quando finalizar, publique em um repositório seu (pode ser privado, basta nos dar acesso) e nos envie o link.
+5. **Prazo de entrega sugerido**: 7 dias. Foque na qualidade da arquitetura e dos testes, mesmo que o escopo funcional não esteja 100% polido.
 
-O evento de infraestrutura `Infrastructure\Laravel\Events\ContactScoreProcessedEvent` faz broadcast no canal **`contacts.{id}`** como **canal público** (`Channel`).
-
-**Justificativa:** em ambiente local e demos, um canal público simplifica o HTML de exemplo (sem endpoint de autenticação Pusher/Reverb). Em produção, o recomendável é migrar para **canal privado** (`PrivateChannel`) ou **presence**, com autenticação em `routes/channels.php` e credenciais protegidas.
-
-## Exemplo HTML/JS (Pusher JS + Reverb)
-
-Substitua `APP_KEY` pelo valor de `REVERB_APP_KEY` do seu `.env`.
-
-```html
-<script src="https://js.pusher.com/8.2.0/pusher.min.js"></script>
-<script>
-  const pusher = new Pusher('APP_KEY', { wsHost: 'localhost', wsPort: 8080, forceTLS: false, cluster: '' });
-  const channel = pusher.subscribe('contacts.1');
-  channel.bind('ContactScoreProcessed', (data) => console.log(data));
-</script>
-```
-
-## Arquitetura (resumo)
-
-- **Domínio** (`src/Domain`): entidades, value objects, estratégias de score, eventos puros.
-- **Aplicação** (`src/Application`): casos de uso e DTOs.
-- **Infraestrutura** (`src/Infrastructure/Laravel`): Eloquent, HTTP, jobs, listeners, broadcast, providers.
-
-## Licença
-
-MIT.
+Boa sorte 🚀
