@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Application\Contact\UseCases;
 
-use Application\Contracts\DomainEventDispatcherInterface;
 use Application\Contact\UseCases\ProcessContactScoreUseCase;
+use Application\Contracts\DomainEventDispatcherInterface;
 use Domain\Contact\Entities\Contact;
 use Domain\Contact\Events\ContactScoreProcessed;
 use Domain\Contact\Repositories\ContactRepositoryInterface;
@@ -67,9 +67,9 @@ final class ProcessContactScoreUseCaseTest extends TestCase
         $useCase = new ProcessContactScoreUseCase(
             repository: $repository,
             scoreCalculatorService: new ScoreCalculatorService([
-                new EmailScoreStrategy(),
-                new NameScoreStrategy(),
-                new PhoneScoreStrategy(),
+                new EmailScoreStrategy,
+                new NameScoreStrategy,
+                new PhoneScoreStrategy,
             ]),
             eventDispatcher: $dispatcher,
             processingDelayInSeconds: 0,
@@ -117,11 +117,24 @@ final class ProcessContactScoreUseCaseTest extends TestCase
 
         $dispatcher = $this->createMock(DomainEventDispatcherInterface::class);
         $dispatcher
-            ->expects($this->never())
-            ->method('dispatch');
+            ->expects($this->once())
+            ->method('dispatch')
+            ->with($this->callback(function (object $event): bool {
+                if (! $event instanceof ContactScoreProcessed) {
+                    return false;
+                }
+
+                $c = $event->contact();
+
+                return $c->id() === 1
+                    && $c->score() === 0
+                    && $c->status() === ContactStatus::Failed
+                    && $c->processedAt() !== null;
+            }));
 
         $failingService = new ScoreCalculatorService([
-            new class implements ScoreStrategyInterface {
+            new class implements ScoreStrategyInterface
+            {
                 public function calculate(string $name, Email $email, Phone $phone): int
                 {
                     throw new RuntimeException('Score failed.');

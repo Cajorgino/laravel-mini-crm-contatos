@@ -4,9 +4,17 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use Domain\Contact\Services\ScoreCalculatorService;
+use Domain\Contact\Strategies\ScoreStrategyInterface;
+use Domain\Contact\ValueObjects\Email;
+use Domain\Contact\ValueObjects\Phone;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Queue;
+use Infrastructure\Laravel\Events\ContactScoreProcessedEvent;
 use Infrastructure\Laravel\Jobs\ProcessContactScoreJob;
+use RuntimeException;
 use Tests\TestCase;
 
 final class ContactApiTest extends TestCase
@@ -16,9 +24,7 @@ final class ContactApiTest extends TestCase
     public static function setUpBeforeClass(): void
     {
         if (! self::databaseIsReachable()) {
-            self::markTestSkipped(
-                'Feature tests require a reachable MySQL server (Sail: ./vendor/bin/sail up, then ./vendor/bin/sail artisan test).',
-            );
+            self::markTestSkipped('MySQL com base `testing` indisponível.');
         }
 
         parent::setUpBeforeClass();
@@ -142,7 +148,7 @@ final class ContactApiTest extends TestCase
     {
         $this->getJson('/api/contacts/999999')
             ->assertNotFound()
-            ->assertJsonPath('message', 'Contact not found.');
+            ->assertJsonPath('message', 'Contato não encontrado.');
     }
 
     public function test_updates_a_contact(): void
@@ -165,7 +171,7 @@ final class ContactApiTest extends TestCase
             ->assertJsonPath('data.email', 'ana.paula@empresa.com.br');
     }
 
-    public function test_soft_deletes_a_contact(): void
+    public function test_delete_removes_contact_and_get_returns_404(): void
     {
         $created = $this->postJson('/api/contacts', [
             'name' => 'Luiz Costa',
@@ -182,6 +188,31 @@ final class ContactApiTest extends TestCase
             ->assertNotFound();
     }
 
+    public function test_can_create_contact_reusing_email_after_delete(): void
+    {
+        $email = 'reuse.after.delete@empresa.com';
+
+        $first = $this->postJson('/api/contacts', [
+            'name' => 'Primeiro',
+            'email' => $email,
+            'phone' => '11911111111',
+        ]);
+
+        $id = $first->json('data.id');
+
+        $this->deleteJson("/api/contacts/{$id}")->assertNoContent();
+
+        $second = $this->postJson('/api/contacts', [
+            'name' => 'Segundo',
+            'email' => $email,
+            'phone' => '11922222222',
+        ]);
+
+        $second->assertCreated()
+            ->assertJsonPath('data.email', $email)
+            ->assertJsonPath('data.name', 'Segundo');
+    }
+
     public function test_process_score_endpoint_dispatches_job(): void
     {
         Queue::fake();
@@ -196,7 +227,7 @@ final class ContactApiTest extends TestCase
 
         $this->postJson("/api/contacts/{$id}/process-score")
             ->assertAccepted()
-            ->assertJsonPath('message', 'Contact score processing queued.');
+            ->assertJsonPath('message', 'Pontuação na fila.');
 
         Queue::assertPushed(ProcessContactScoreJob::class, function (ProcessContactScoreJob $job) use ($id): bool {
             return $job->contactId === $id;
@@ -225,9 +256,79 @@ final class ContactApiTest extends TestCase
         $this->assertFileExists($logPath);
 
         $contents = (string) file_get_contents($logPath);
-        $this->assertStringContainsString("Contact ID: {$id}", $contents);
+        $this->assertStringContainsString("id={$id}", $contents);
         $this->assertStringContainsString('joao@empresa.com.br', $contents);
-        $this->assertStringContainsString('Score: 60', $contents);
-        $this->assertStringContainsString('Status: active', $contents);
+        $this->assertStringContainsString('novo_score=60', $contents);
+        $this->assertStringContainsString('status=active', $contents);
+    }
+
+    public function test_process_score_dispatches_broadcastable_laravel_event(): void
+    {
+        Event::fake([ContactScoreProcessedEvent::class]);
+
+        $created = $this->postJson('/api/contacts', [
+            'name' => 'Broadcast Silva',
+            'email' => 'broadcast.test@empresa.com.br',
+            'phone' => '11987654321',
+        ]);
+
+        $id = $created->json('data.id');
+
+        $this->postJson("/api/contacts/{$id}/process-score")
+            ->assertAccepted();
+
+        Event::assertDispatched(ContactScoreProcessedEvent::class, function (ContactScoreProcessedEvent $e) use ($id): bool {
+            if ($e->broadcastAs() !== 'ContactScoreProcessed') {
+                return false;
+            }
+            $channels = $e->broadcastOn();
+
+            return count($channels) === 1 && $channels[0]->name === 'contacts.'.$id;
+        });
+    }
+
+    public function test_process_score_failure_marks_contact_failed_and_writes_contact_log(): void
+    {
+        $created = $this->postJson('/api/contacts', [
+            'name' => 'João Silva',
+            'email' => 'falha.score@empresa.com.br',
+            'phone' => '11987654321',
+        ]);
+
+        $id = $created->json('data.id');
+
+        $this->app->bind(
+            ScoreCalculatorService::class,
+            static fn (): ScoreCalculatorService => new ScoreCalculatorService([
+                new class implements ScoreStrategyInterface
+                {
+                    public function calculate(string $name, Email $email, Phone $phone): int
+                    {
+                        throw new RuntimeException('Score failed.');
+                    }
+                },
+            ]),
+        );
+
+        try {
+            Bus::dispatchSync(new ProcessContactScoreJob($id));
+        } catch (RuntimeException $e) {
+            $this->assertSame('Score failed.', $e->getMessage());
+        }
+
+        $response = $this->getJson("/api/contacts/{$id}");
+        $response->assertOk()
+            ->assertJsonPath('data.status', 'failed')
+            ->assertJsonPath('data.score', 0);
+        $this->assertNotNull($response->json('data.processed_at'));
+
+        $logPath = storage_path('logs/contact.log');
+        $this->assertFileExists($logPath);
+
+        $contents = (string) file_get_contents($logPath);
+        $this->assertStringContainsString("id={$id}", $contents);
+        $this->assertStringContainsString('falha.score@empresa.com.br', $contents);
+        $this->assertStringContainsString('novo_score=0', $contents);
+        $this->assertStringContainsString('status=failed', $contents);
     }
 }

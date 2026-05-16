@@ -124,7 +124,7 @@ final class ContactCrudUseCasesTest extends TestCase
         $useCase = new GetContactUseCase($repository);
 
         $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('Contact not found.');
+        $this->expectExceptionMessage('Contato não encontrado.');
 
         $useCase->execute(99);
     }

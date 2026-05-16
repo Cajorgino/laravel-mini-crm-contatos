@@ -30,15 +30,15 @@ final class LogContactScoreListenerTest extends TestCase
             status: ContactStatus::Active,
         );
 
-        $listener = new LogContactScoreListener();
+        $listener = new LogContactScoreListener;
         $listener->handle(new ContactScoreProcessed($contact));
 
         $this->assertFileExists($logPath);
 
         $contents = (string) file_get_contents($logPath);
-        $this->assertStringContainsString('Contact ID: 42', $contents);
-        $this->assertStringContainsString('Email: joao@empresa.com.br', $contents);
-        $this->assertStringContainsString('Score: 60', $contents);
-        $this->assertStringContainsString('Status: active', $contents);
+        $this->assertStringContainsString('id=42', $contents);
+        $this->assertStringContainsString('email=joao@empresa.com.br', $contents);
+        $this->assertStringContainsString('novo_score=60', $contents);
+        $this->assertStringContainsString('status=active', $contents);
     }
 }
