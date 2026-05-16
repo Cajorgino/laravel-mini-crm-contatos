@@ -29,9 +29,9 @@ final class AppServiceProvider extends ServiceProvider
         $this->app->bind(DomainEventDispatcherInterface::class, LaravelDomainEventDispatcher::class);
         $this->app->bind(ScoreCalculatorService::class, function (): ScoreCalculatorService {
             return new ScoreCalculatorService([
-                new EmailScoreStrategy(),
-                new NameScoreStrategy(),
-                new PhoneScoreStrategy(),
+                new EmailScoreStrategy,
+                new NameScoreStrategy,
+                new PhoneScoreStrategy,
             ]);
         });
 
